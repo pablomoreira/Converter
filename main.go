@@ -24,6 +24,7 @@ func main() {
 	if err != nil {
 
 		log.Fatal(err)
+		fmt.Scanln()
 	}
 	config := make(map[string]string)
 	err = yaml.Unmarshal(yfile, &config)
@@ -31,12 +32,14 @@ func main() {
 	if err != nil {
 
 		log.Fatal(err)
+		fmt.Scanln()
 	}
+
 	for k, v := range config {
 
 		fmt.Printf("%s -> %s\n", k, v)
 	}
-
+	fmt.Scanln()
 	a := app.New()
 	w := a.NewWindow("Converter")
 
