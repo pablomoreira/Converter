@@ -118,7 +118,7 @@ func _backWDir(_spath string, _dpath string, _kw string, _args string, _data bin
 			if strings.ToLower(strings.Split(file.Name(), ".")[1]) == "mov" {
 				ouputfile := strings.ToLower(strings.Split(file.Name(), ".")[0])
 				err = ffmpeg.Input(_spath+file.Name()).
-					Output(_dpath+ouputfile+".mp4", ffmpeg.KwArgs{"c:v": "libx265", "vf": "scale=1024x720", "r": "30"}).
+					Output(_dpath+ouputfile+".mp4", ffmpeg.KwArgs{"c:v": "h264_amf", "vf": "scale=1024x720", "r": "30"}).
 					OverWriteOutput().ErrorToStdOut().Run()
 				if err != nil {
 					log.Panic("conveter")
