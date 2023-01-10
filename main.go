@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"strings"
@@ -31,11 +32,10 @@ func main() {
 
 		log.Fatal(err)
 	}
-	/*for k, v := range config {
+	for k, v := range config {
 
-		fmt.Printf("%s -> %d\n", k, v)
+		fmt.Printf("%s -> %s\n", k, v)
 	}
-	*/
 
 	a := app.New()
 	w := a.NewWindow("Converter")
