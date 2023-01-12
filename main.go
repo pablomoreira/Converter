@@ -70,37 +70,46 @@ func main() {
 
 	//go timer(str, ctx)
 	signal := make(chan byte)
+	size := make(chan string)
 
 	//go _backW1(ctx, singnals)
 
 	//go _backWDir(config["_spath"], config["_dpath"], config["_kw"], config["_args"], data, ctx)
-	go _backWDir(config["_spath"], config["_dpath"], config["_kw"], config["_args"], signal, ctx)
+	go _backWDir(config["_spath"], config["_dpath"], config["_kw"], config["_args"], signal, size, ctx)
 	//w.ShowAndRun()
 
 	for _loop := true; _loop == true; {
 		var file *os.File
-		time.Sleep(time.Millisecond * 100)
+		time.Sleep(time.Millisecond * 2)
+		Size := ""
 		select {
 		case <-signal:
 			log.Print("-")
 			_loop = false
 			file.Close()
 		default:
-			log.Print(".")
+			select {
+			case Size = <-size:
+				log.Print(Size)
+			default:
+				log.Print(".")
 
-			if file == nil {
-				file, err = os.Open("progress.log") // For read access.
-				if err != nil {
-					log.Panic(err)
+				if file == nil {
+					file, err = os.Open("progress.log") // For read access.
+					if err != nil {
+						log.Print(err)
+					}
+				} else {
+					fileScanner := bufio.NewScanner(file)
+					fileScanner.Split(bufio.ScanLines)
+					for fileScanner.Scan() {
+						out := strings.Split(fileScanner.Text(), "=")
+						if out[0] == "frame" {
+							fmt.Println(out[1], Size)
+						}
+					}
 				}
-			}
-			fileScanner := bufio.NewScanner(file)
-			fileScanner.Split(bufio.ScanLines)
-			for fileScanner.Scan() {
-				out := strings.Split(fileScanner.Text(), "=")
-				if out[0] == "speed" {
-					fmt.Println(out[1])
-				}
+
 			}
 		}
 	}
@@ -160,7 +169,7 @@ func _backW1(ctx context.Context, signal chan int) {
 // 	time.Sleep(time.Millisecond * 300)
 // }
 
-func _backWDir(_spath string, _dpath string, _kw string, _args string, signal chan byte, _ctx context.Context) {
+func _backWDir(_spath string, _dpath string, _kw string, _args string, signal chan byte, size chan string, _ctx context.Context) {
 	//time.Sleep(time.Millisecond * 300)
 	files, err := ioutil.ReadDir(_spath)
 	if err != nil {
@@ -172,13 +181,23 @@ func _backWDir(_spath string, _dpath string, _kw string, _args string, signal ch
 			if strings.ToLower(strings.Split(file.Name(), ".")[1]) == "mov" {
 				ouputfile := strings.Split(file.Name(), ".")[0] + ".mp4"
 				inputfile := _spath + file.Name()
+
+				cmd_probe := exec.Command("ffprobe", "-v", "error", "-select_streams", "v:0",
+					"-count_packets", "-show_entries", "stream=nb_read_packets", "-of", "csv=p=0", inputfile)
+
+				cmd_probe.Stderr = os.Stderr
+				data, err := cmd_probe.Output()
+				if err != nil {
+					log.Fatalf("failed to call Output(): %v", err)
+				}
+				size <- string(data)
+
 				log.Printf("%s -> %s\n", inputfile, ouputfile)
 
 				cmd := exec.Command("ffmpeg", "-y", "-i", inputfile, ouputfile, "-v", "0", "-progress", "progress.log")
-				//cmd.Stdout = os.Stdout
 
 				if err := cmd.Run(); err != nil {
-					fmt.Println("could not run command: ", err)
+					fmt.Println("ffmpeg could not run command: ", err)
 				}
 			}
 		}
