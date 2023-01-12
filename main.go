@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -10,8 +9,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+	"github.com/nxadm/tail" 
 
-	"fyne.io/fyne/v2/data/binding"
 	"gopkg.in/yaml.v2"
 )
 
@@ -68,63 +67,53 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	//go timer(str, ctx)
+	
 	signal := make(chan byte)
 	size := make(chan string)
 
 	//go _backW1(ctx, singnals)
 
 	//go _backWDir(config["_spath"], config["_dpath"], config["_kw"], config["_args"], data, ctx)
-	go _backWDir(config["_spath"], config["_dpath"], config["_kw"], config["_args"], signal, size, ctx)
+	go _backWDir(config["_spath"], config["_dpath"], signal, size, ctx)
 	//w.ShowAndRun()
+	
+	t, err := tail.TailFile(
+		"progress.log", tail.Config{Follow: true, ReOpen: true})
+	if err != nil {
+		log.Print(err)
+	}
 
+
+	Size :=""
 	for _loop := true; _loop == true; {
-		var file *os.File
-		time.Sleep(time.Millisecond * 2)
-		Size := ""
 		select {
 		case <-signal:
 			log.Print("-")
 			_loop = false
-			file.Close()
+
+		case tmp := <-size:
+				log.Print("FRAME > "+ tmp)
+				Size = tmp
+
 		default:
-			select {
-			case Size = <-size:
-				log.Print(Size)
-			default:
-				log.Print(".")
-
-				if file == nil {
-					file, err = os.Open("progress.log") // For read access.
-					if err != nil {
-						log.Print(err)
-					}
-				} else {
-					fileScanner := bufio.NewScanner(file)
-					fileScanner.Split(bufio.ScanLines)
-					for fileScanner.Scan() {
-						out := strings.Split(fileScanner.Text(), "=")
-						if out[0] == "frame" {
-							fmt.Println(out[1], Size)
-						}
-					}
+			time.Sleep(time.Millisecond * 10)
+			
+			for line := range t.Lines {
+				__line := strings.Split(line.Text,"=")
+				if __line[0] == "frame"{
+					log.Println(__line[1],Size)
 				}
-
+				break
 			}
 		}
 	}
 
 	time.Sleep(time.Second * 2)
+	
 	//singnals <- 1
 	//cancel()
 }
 
-func timer(str binding.String, ctx context.Context) {
-	for true {
-		time.Sleep(time.Second)
-		//str.Set(time.Now().String())
-	}
-}
 
 func _backW1(ctx context.Context, signal chan int) {
 	i := 0
@@ -146,30 +135,7 @@ func _backW1(ctx context.Context, signal chan int) {
 	}
 }
 
-// func _backWDir(_spath string, _dpath string, _kw string, _args string, _data binding.ExternalStringList, _ctx context.Context) {
-// 	time.Sleep(time.Millisecond * 300)
-// 	files, err := ioutil.ReadDir(_spath)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	for _, file := range files {
-// 		if file.IsDir() == false && len(strings.Split(file.Name(), ".")) == 2 {
-// 			if strings.ToLower(strings.Split(file.Name(), ".")[1]) == "mov" {
-// 				ouputfile := strings.ToLower(strings.Split(file.Name(), ".")[0])
-// 				err = ffmpeg.Input(_spath+file.Name()).
-// 					Output(_dpath+ouputfile+".mp4", ffmpeg.KwArgs{"c:v": "h264_amf", "vf": "scale=1024x720", "r": "30"}).
-// 					OverWriteOutput().ErrorToStdOut().Run()
-// 				if err != nil {
-// 					log.Panic("conveter")
-// 				}
-// 				//_data.Append(_dpath + ouputfile + ".mp4")
-// 			}
-// 		}
-// 	}
-// 	time.Sleep(time.Millisecond * 300)
-// }
-
-func _backWDir(_spath string, _dpath string, _kw string, _args string, signal chan byte, size chan string, _ctx context.Context) {
+func _backWDir(_spath string, _dpath string, signal chan byte, size chan string, _ctx context.Context) {
 	//time.Sleep(time.Millisecond * 300)
 	files, err := ioutil.ReadDir(_spath)
 	if err != nil {
@@ -190,9 +156,10 @@ func _backWDir(_spath string, _dpath string, _kw string, _args string, signal ch
 				if err != nil {
 					log.Fatalf("failed to call Output(): %v", err)
 				}
-				size <- string(data)
+				Size := string(data)
+				size <- Size
 
-				log.Printf("%s -> %s\n", inputfile, ouputfile)
+				log.Printf("%s -> %s Frame=%s\n", inputfile, ouputfile,Size )
 
 				cmd := exec.Command("ffmpeg", "-y", "-i", inputfile, ouputfile, "-v", "0", "-progress", "progress.log")
 
