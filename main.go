@@ -141,4 +141,10 @@ func delFileIfExist(filename string) {
 	} else {
 		os.Remove(filename)
 	}
+	f, _ := OpenFile(filename)
+	f.Close()
+}
+
+func OpenFile(name string) (file *os.File, err error) {
+	return os.OpenFile(name, os.O_RDONLY, 0)
 }
